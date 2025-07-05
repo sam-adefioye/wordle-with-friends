@@ -9,10 +9,16 @@ from time import time
 import uuid
 import json
 import random
+import os
+from fastapi.staticfiles import StaticFiles
 
 WORD_LIST = load_words()
 
 app = FastAPI()
+
+# Only mount static files if running in Docker
+if os.environ.get("IN_DOCKER") == "1":
+    app.mount("/", StaticFiles(directory="frontend_build", html=True), name="static")
 
 app.add_middleware(
     CORSMiddleware,
