@@ -1,0 +1,125 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+  align-items: center;
+  row-gap: 8px;
+}
+.grid-row {
+  display: flex;
+  gap: 8px;
+  column-gap: 8px;
+}
+.grid-tile {
+  width: 48px;
+  height: 48px;
+  background: #e0e0e0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  -webkit-box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  border: 2px solid #bdbdbd;
+}
+.grid-tile.green {
+  background: #6aaa64;
+  color: white;
+  border-color: #538d4e;
+  background: #6aaa64;
+  background: -webkit-linear-gradient(top, #6aaa64, #538d4e);
+  background: -moz-linear-gradient(top, #6aaa64, #538d4e);
+  background: -o-linear-gradient(top, #6aaa64, #538d4e);
+  background: linear-gradient(to bottom, #6aaa64, #538d4e);
+  color: white;
+  border-color: #538d4e;
+}
+.grid-tile.yellow {
+  background: #c9b458;
+  color: white;
+  border-color: #b59f3b;
+  background: #c9b458;
+  background: -webkit-linear-gradient(top, #c9b458, #b59f3b);
+  background: -moz-linear-gradient(top, #c9b458, #b59f3b);
+  background: -o-linear-gradient(top, #c9b458, #b59f3b);
+  background: linear-gradient(to bottom, #c9b458, #b59f3b);
+  color: white;
+  border-color: #b59f3b;
+}
+.grid-tile.gray {
+  background: #787c7e;
+  color: white;
+  border-color: #3a3a3c;
+  background: #787c7e;
+  background: -webkit-linear-gradient(top, #787c7e, #3a3a3c);
+  background: -moz-linear-gradient(top, #787c7e, #3a3a3c);
+  background: -o-linear-gradient(top, #787c7e, #3a3a3c);
+  background: linear-gradient(to bottom, #787c7e, #3a3a3c);
+  color: white;
+  border-color: #3a3a3c;
+}
+.players-guesses {
+  margin-top: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.players-guesses div {
+  margin-bottom: 4px;
+}
+
+.guess-player {
+  margin-left: 12px;
+  font-size: 1.1rem;
+  color: #444;
+  font-weight: 500;
+  align-self: center;
+}
+
+input[placeholder="Your Guess"] {
+  margin-top: 1.5em;
+}
