@@ -6,8 +6,10 @@ const isBrowser = typeof window !== 'undefined';
 // Determine if we're in development (localhost) or production (Docker)
 const isDevelopment = isBrowser && window.location.hostname === 'localhost' && window.location.port !== '8000';
 
-// Use localhost:8000 for development, relative URLs for production
-export const BACKEND_URL = isDevelopment ? 'http://localhost:8000' : '';
+// Use localhost:8000 for development, current origin for production
+export const BACKEND_URL = isDevelopment 
+  ? 'http://localhost:8000' 
+  : (isBrowser ? window.location.origin : '');
 
 export const WS_URL = isDevelopment 
   ? 'ws://localhost:8000/ws/'

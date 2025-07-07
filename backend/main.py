@@ -15,10 +15,6 @@ WORD_LIST = load_words()
 
 app = FastAPI()
 
-# Only mount static files if running in Docker
-if os.environ.get("IN_DOCKER") == "1":
-    app.mount("/", StaticFiles(directory="frontend_build", html=True), name="static")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -185,3 +181,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str)
                 await manager.broadcast(session_id, broadcast_data)
     except WebSocketDisconnect:
         manager.disconnect(session_id, player)
+
+
+# Only mount static files if running in Docker
+if os.environ.get("IN_DOCKER") == "1":
+    app.mount("/", StaticFiles(directory="frontend_build", html=True), name="static")
