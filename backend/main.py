@@ -1,5 +1,5 @@
 from tkinter.constants import WORD
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
@@ -32,6 +32,7 @@ SESSION_ID_PREFIX = 'wordle-answer-'
 PLAYERS_KEY = 'players'
 GUESSES_KEY = 'guesses'
 ANSWER_KEY = 'answer'
+SESSION_TTL_SECONDS = 60 * 60 * 24
 
 class Action(Enum):
     CREATE = "create"
@@ -42,10 +43,10 @@ REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 red_cache = Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
-def get_random_word():
+def get_random_word() -> str:
     return random.choice(WORD_LIST)
 
-def new_game_state():
+def new_game_state() -> dict:
     return {
         ANSWER_KEY: get_random_word(),
         GUESSES_KEY: [],
@@ -80,23 +81,25 @@ async def get_or_create_game_state(action: Action, session_id = None) -> dict:
 
 class ConnectionManager:
     def __init__(self):
+        # Now: {session_id: {player_name: websocket}}
         self.active_connections: dict = {}
 
-    async def connect(self, session_id: str, websocket: WebSocket):
+    async def connect(self, session_id: str, player: str, websocket: WebSocket):
         await websocket.accept()
         if session_id not in self.active_connections:
-            self.active_connections[session_id] = []
-        self.active_connections[session_id].append(websocket)
+            self.active_connections[session_id] = {}
+        self.active_connections[session_id][player] = websocket
 
-    def disconnect(self, session_id: str, websocket: WebSocket):
-        self.active_connections[session_id].remove(websocket)
-        if not self.active_connections[session_id]:
-            del self.active_connections[session_id]
+    def disconnect(self, session_id: str, player: str):
+        if session_id in self.active_connections and player in self.active_connections[session_id]:
+            del self.active_connections[session_id][player]
+            if not self.active_connections[session_id]:
+                del self.active_connections[session_id]
 
     async def broadcast(self, session_id: str, message: dict):
         if session_id in self.active_connections:
-            for connection in self.active_connections[session_id]:
-                await connection.send_json(message)
+            for ws in self.active_connections[session_id].values():
+                await ws.send_json(message)
 
 manager = ConnectionManager()
 
@@ -105,6 +108,7 @@ async def create_session():
     session_id = str(uuid.uuid4())
     game_state = new_game_state()
     await red_cache.set(f"{SESSION_ID_PREFIX}{session_id}", json.dumps(game_state))
+    await red_cache.expire(f"{SESSION_ID_PREFIX}{session_id}", SESSION_TTL_SECONDS)
     return JSONResponse({"session_id": session_id})
 
 
@@ -113,27 +117,23 @@ async def reset_session(session_id: str):
     session_id_str = f"{SESSION_ID_PREFIX}{session_id}"
     game_state = await get_or_create_game_state(Action.RESET, session_id)
     await red_cache.set(session_id_str, json.dumps(game_state))
+    await red_cache.expire(session_id_str, SESSION_TTL_SECONDS)
 
     try:
-        await manager.broadcast(session_id, {
-            PLAYERS_KEY: game_state[PLAYERS_KEY],
-            GUESSES_KEY: game_state[GUESSES_KEY],
-            ANSWER_KEY: game_state[ANSWER_KEY],
-            "type": Action.RESET.value
-        })
+        await manager.broadcast(session_id, {**game_state, "type": Action.RESET.value})
     except Exception:
         pass
     
-    return JSONResponse({"status": "reset", "session_id": session_id})
+    return Response(status_code=200)
 
 
-@app.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    await manager.connect(session_id, websocket)    
-    session_id_str = f"{SESSION_ID_PREFIX}{session_id}"
+@app.websocket("/ws/{session_id}/{player}")
+async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str):
+    await manager.connect(session_id, player, websocket)
 
     try:
         while True:
+            session_id_str = f"{SESSION_ID_PREFIX}{session_id}"
             data = await websocket.receive_json()
             player = data.get("player")
             guess = data.get("guess")
@@ -151,11 +151,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         game_state = json.loads(game_state_json)
                         game_state[PLAYERS_KEY].append(player)
                         await red_cache.set(session_id_str, json.dumps(game_state))
-                    await manager.broadcast(session_id, {
-                        PLAYERS_KEY: game_state[PLAYERS_KEY],
-                        GUESSES_KEY: game_state[GUESSES_KEY],
-                        ANSWER_KEY: game_state[ANSWER_KEY]}
-                    );
+                        await red_cache.expire(session_id_str, SESSION_TTL_SECONDS)
+                    await manager.broadcast(session_id, game_state);
 
                 pipe.get(session_id_str)
                 results = await pipe.execute()
@@ -171,11 +168,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 if player and guess:
                     game_state[GUESSES_KEY].append({'name': player, 'timestamp': time(), 'guess': guess})
                 
-                broadcast_data = {
-                    PLAYERS_KEY: game_state[PLAYERS_KEY],
-                    GUESSES_KEY: game_state[GUESSES_KEY],
-                    ANSWER_KEY: game_state[ANSWER_KEY]
-                }
+                broadcast_data = {**game_state}
                 total_guesses = len(game_state[GUESSES_KEY])
 
                 if player and guess and total_guesses < 6:
@@ -187,6 +180,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     broadcast_data = {**broadcast_data, **game_result}
 
                 await red_cache.set(session_id_str, json.dumps(game_state))
-            await manager.broadcast(session_id, broadcast_data)
+                await red_cache.expire(session_id_str, SESSION_TTL_SECONDS)
+            
+            if type != Action.CREATE.value:
+                await manager.broadcast(session_id, broadcast_data)
     except WebSocketDisconnect:
-        manager.disconnect(session_id, websocket) 
+        manager.disconnect(session_id, player)

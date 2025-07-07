@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
+import ClearIcon from '@mui/icons-material/Clear';
 import './App.css';
+import { BACKEND_URL, WS_URL, MAX_GUESSES, WORD_LENGTH } from './constants';
+import { GameState, Guess } from './model/interfaces';
 
-const BACKEND_URL = 'http://localhost:8000';
-const WS_URL = 'ws://localhost:8000/ws/';
-const MAX_GUESSES = 5;
-const WORD_LENGTH = 5;
-
-function getTileColors(guess, answer) {
+const getTileColors = (guess: string, answer: string) => {
   const colors = Array(WORD_LENGTH).fill('gray');
   const answerArr = answer.split('');
   const guessArr = guess.split('');
@@ -38,16 +38,17 @@ function App() {
   const [sessionId, setSessionId] = useState(initialSessionId);
   const [player, setPlayer] = useState('');
   const [guess, setGuess] = useState('');
-  const [guesses, setGuesses] = useState([]);
+  const [guesses, setGuesses] = useState<Guess[]>([]);
   const [connected, setConnected] = useState(false);
   const [answer, setAnswer] = useState('');
   const [totalGuesses, setTotalGuesses] = useState(0);
   const [gameResult, setGameResult] = useState("");
-  const [gridRows, setGridRows] = useState([]);
+  const [gridRows, setGridRows] = useState<string[]>([]);
   const [guessesLeft, setGuessesLeft] = useState(false);
-  const [players, setPlayers] = useState([]);
-  const ws = useRef(null);
-
+  const [players, setPlayers] = useState<string[]>([]);
+  const ws = useRef<WebSocket | null>(null);
+  
+  
   useEffect(() => {
     const allGuesses = guesses.sort((a, b) => a.timestamp - b.timestamp);
     setGridRows(Array.from({ length: MAX_GUESSES }, (_, i) =>
@@ -55,6 +56,15 @@ function App() {
     ));
     setGuessesLeft(totalGuesses < MAX_GUESSES);
   }, [guesses, connected, totalGuesses, players]);
+  
+  const clear = () => {
+    setGuesses([]);
+    setTotalGuesses(0);
+    setAnswer('');
+    setGameResult("");
+    setConnected(false);
+    setPlayers([]);
+  }
 
   const createSession = async () => {
     if (sessionId) {
@@ -68,13 +78,7 @@ function App() {
       }
       return;
     }
-    
-    setGuesses([]);
-    setTotalGuesses(0);
-    setAnswer('');
-    setGameResult("");
-    setConnected(false);
-    setPlayers([]);
+    clear();
     
     const res = await fetch(`${BACKEND_URL}/create_session`, { method: 'POST' });
     const data = await res.json();
@@ -85,18 +89,18 @@ function App() {
   const joinSession = () => {
     if (!sessionId || !player) return;
 
-    ws.current = new window.WebSocket(`${WS_URL}${sessionId}`);
+    ws.current = new window.WebSocket(`${WS_URL}${sessionId}/${player}`);
     ws.current.onopen = () => {
       setConnected(true)
       setPlayers(prevPlayers => !prevPlayers.includes(player) ? [...prevPlayers, player] : prevPlayers);
       
-      ws.current.send(JSON.stringify({ 
+      ws.current?.send(JSON.stringify({ 
         player: player,
         type: "create"
       }));
     };
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data) as GameState;
       
       if (data.type === "reset") {
         setGuesses([]);
@@ -120,11 +124,7 @@ function App() {
       if (data.players) setPlayers(data.players);
     };
     ws.current.onclose = () => {
-      setConnected(false);
-      setGuesses([]);
-      setTotalGuesses(0);
-      setAnswer('');
-      setPlayers([]);
+      clear();
     };
     window.history.replaceState(null, '', `/${sessionId}`);
   };
@@ -140,7 +140,7 @@ function App() {
     <div className="App">
       <h1>Wordle With Friends</h1>
       <div>
-        <div style={{ marginBottom: '1em' }}>
+        <div className="new-game-container">
           <Button variant="contained" color="primary" onClick={createSession} size="large">
             New Game
           </Button>
@@ -171,12 +171,26 @@ function App() {
               variant="outlined"
               value={player}
               onChange={e => setPlayer(e.target.value)}
-              disabled={connected}
+              disabled={connected || !sessionId}
               style={{ marginRight: '1em' }}
               size="small"
               slotProps={{
+                input: {
+                  endAdornment: player && (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="clear name"
+                        onClick={() => setPlayer('')}
+                        edge="end"
+                        size="small"
+                      >
+                        <ClearIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                },
                 htmlInput: {
-                  minLength: 3, style: { height: 40, fontSize: '1.1em' }
+                  minLength: 3, maxLength: 10, style: { height: 40, fontSize: '1.1em' }
                 }
               }}
             />
@@ -188,7 +202,7 @@ function App() {
               size="large"
               sx={{ height: '56px' }}
             >
-              Join Game
+              Join
             </Button>
           </>
         )}
@@ -205,13 +219,30 @@ function App() {
                   const value = e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, WORD_LENGTH);
                   setGuess(value)
                 }}
-                slotProps={
-                    { 
-                    htmlInput: { 
-                      maxLength: WORD_LENGTH, style: { textTransform: 'uppercase', fontWeight: 'bold', fontSize: '1.2em', letterSpacing: '0.2em' } 
-                    } 
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    sendGuess();
                   }
-                }
+                }}
+                slotProps={{
+                  input: {
+                    endAdornment: guess && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="clear guess"
+                          onClick={() => setGuess('')}
+                          edge="end"
+                          size="small"
+                        >
+                          <ClearIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  },
+                  htmlInput: {
+                    maxLength: WORD_LENGTH, style: { textTransform: 'uppercase', fontWeight: 'bold', fontSize: '1.2em', letterSpacing: '0.2em' }
+                  }
+                }}
                 disabled={!guessesLeft || gameResult.length > 0}
                 autoComplete="off"
                 sx={{ width: 180 }}
@@ -242,7 +273,7 @@ function App() {
             )}
           </>
         )}
-        <h3>Guesses:</h3>
+
         {/* 5x5 grid for the current player with color feedback */}
         <div className="grid-container">
           {gridRows.map((row, rowIdx) => {

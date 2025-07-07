@@ -1,4 +1,26 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f8f9fa; /* or #ececec, match your .App background */
+  height: 100%;
+  box-sizing: border-box;
+}
+
+h1 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5em;
+  letter-spacing: 1px;
+}
+
+.grid-tile:not(.gray):hover {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
 .App {
+  background: #f8f9fa;
+  /* min-height: 100vh; */
   text-align: center;
 }
 
@@ -41,7 +63,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 16px 0;
+  margin: 2em 0 1em;
   align-items: center;
   row-gap: 8px;
 }
@@ -122,4 +144,15 @@
 
 input[placeholder="Your Guess"] {
   margin-top: 1.5em;
+}
+
+
+.MuiTextField-root {
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.new-game-container {
+  margin-bottom: 1.75em;
 }
