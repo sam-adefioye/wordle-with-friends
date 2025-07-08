@@ -11,9 +11,10 @@ export const BACKEND_URL = isDevelopment
   ? 'http://localhost:8000' 
   : (isBrowser ? window.location.origin : '');
 
+// Use secure WebSocket (wss://) for HTTPS pages, regular WebSocket (ws://) for HTTP
 export const WS_URL = isDevelopment 
   ? 'ws://localhost:8000/ws/'
-  : `ws://${window.location.host}/ws/`;
+  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/`;
 
 export const MAX_GUESSES = 6;
 export const WORD_LENGTH = 5; 
