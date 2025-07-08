@@ -4,6 +4,7 @@ import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import ClearIcon from '@mui/icons-material/Clear';
+import ReplayIcon from '@mui/icons-material/Replay';
 import './App.css';
 import { BACKEND_URL, WS_URL, MAX_GUESSES, WORD_LENGTH } from './constants';
 import { GameState, Guess } from './model/interfaces';
@@ -19,9 +20,9 @@ interface AnimatedWordBackgroundProps {
 
 const AnimatedWordBackground: React.FC<AnimatedWordBackgroundProps> = ({ 
   className = '', 
-  opacity = 0.15, 
-  wordCount = 15, 
-  speed = 800,
+  opacity = 0.22, // increased for more visibility
+  wordCount = 22, // more words
+  speed = 900,    // more frequent
   customWords = null 
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -60,6 +61,10 @@ const AnimatedWordBackground: React.FC<AnimatedWordBackgroundProps> = ({
     const delay = Math.random() * 2;
     word.style.animationDelay = delay + 's';
     
+    // Use a more contrasting color for the animated words
+    word.style.color = `rgba(0, 0, 0, 0.08)`;
+    word.style.textShadow = 'none';
+
     containerRef.current.appendChild(word);
     
     setTimeout(() => {
@@ -188,6 +193,8 @@ function App() {
   const [guessesLeft, setGuessesLeft] = useState(false);
   const [players, setPlayers] = useState<string[]>([]);
   const ws = useRef<WebSocket | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [shouldFocusName, setShouldFocusName] = useState(false);
   
   
   useEffect(() => {
@@ -217,6 +224,8 @@ function App() {
       } catch (error) {
         console.error('Failed to reset session:', error);
       }
+      nameInputRef.current?.focus();
+      nameInputRef.current?.click();
       return;
     }
     clear();
@@ -225,6 +234,7 @@ function App() {
     const data = await res.json();
     setSessionId(data.session_id);
     window.history.replaceState(null, '', `/${data.session_id}`);
+    setShouldFocusName(true);
   };
 
   const joinSession = () => {
@@ -277,22 +287,30 @@ function App() {
     }
   };
   
+  useEffect(() => {
+    if (shouldFocusName && sessionId && nameInputRef.current && !connected) {
+      nameInputRef.current.focus();
+      nameInputRef.current.click();
+      setShouldFocusName(false);
+    }
+  }, [shouldFocusName, sessionId, connected]);
+
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
       {/* Animated Background */}
       <AnimatedWordBackground 
-        opacity={0.06}
-        wordCount={10}
-        speed={1500}
+        opacity={0.22}
+        wordCount={22}
+        speed={900}
       />
       
       {/* Main App Content */}
-      <div className="App" style={{ position: 'relative', zIndex: 1 }}>
-        <h1>Wordle With Friends</h1>
+      <div className="App">
+        <h1>Wordle w/ Friends</h1>
         <div>
           <div className="new-game-container">
             <Button variant="contained" color="primary" onClick={createSession} size="large">
-              New Game
+              {gameResult || sessionId ? <ReplayIcon fontSize="medium" /> : 'New Game'}
             </Button>
           </div>
           
@@ -324,6 +342,7 @@ function App() {
                 disabled={connected || !sessionId}
                 style={{ marginRight: '1em' }}
                 size="small"
+                inputRef={nameInputRef}
                 slotProps={{
                   input: {
                     endAdornment: player && (
