@@ -1,17 +1,20 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #f8f9fa; /* or #ececec, match your .App background */
+  background: #181c1f;
   height: 100%;
   box-sizing: border-box;
 }
 
 h1 {
   font-family: 'Montserrat', sans-serif;
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 700;
   margin-bottom: 0.5em;
   letter-spacing: 1px;
+  color: #fff;
+  text-align: center;
+  margin-top: 0.5em;
 }
 
 .grid-tile:not(.gray):hover {
@@ -19,9 +22,13 @@ h1 {
 }
 
 .App {
-  background: #f8f9fa;
-  /* min-height: 100vh; */
+  background: #181c1f;
+  min-height: 100vh;
   text-align: center;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .App-logo {
@@ -75,7 +82,7 @@ h1 {
 .grid-tile {
   width: 48px;
   height: 48px;
-  background: #e0e0e0;
+  background: #23272a;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -83,42 +90,31 @@ h1 {
   font-size: 2rem;
   font-weight: bold;
   text-transform: uppercase;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  -webkit-box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  border: 2px solid #bdbdbd;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  border: 2px solid #444;
+  color: #fff;
+  transition: background 0.2s, border 0.2s;
 }
 .grid-tile.green {
-  background: #6aaa64;
-  color: white;
-  border-color: #538d4e;
-  background: #6aaa64;
-  background: -webkit-linear-gradient(top, #6aaa64, #538d4e);
-  background: -moz-linear-gradient(top, #6aaa64, #538d4e);
-  background: -o-linear-gradient(top, #6aaa64, #538d4e);
-  background: linear-gradient(to bottom, #6aaa64, #538d4e);
+  background: -webkit-linear-gradient(to bottom, #6aaa64, #538d4e); /* Safari, Chrome */
+  background: -moz-linear-gradient(to bottom, #6aaa64, #538d4e);    /* Firefox */
+  background: -o-linear-gradient(to bottom, #6aaa64, #538d4e);      /* Opera */
+  background: linear-gradient(to bottom, #6aaa64, #538d4e);         /* Standard */
   color: white;
   border-color: #538d4e;
 }
 .grid-tile.yellow {
-  background: #c9b458;
-  color: white;
-  border-color: #b59f3b;
-  background: #c9b458;
-  background: -webkit-linear-gradient(top, #c9b458, #b59f3b);
-  background: -moz-linear-gradient(top, #c9b458, #b59f3b);
-  background: -o-linear-gradient(top, #c9b458, #b59f3b);
+  background: -webkit-linear-gradient(to bottom, #c9b458, #b59f3b);
+  background: -moz-linear-gradient(to bottom, #c9b458, #b59f3b);
+  background: -o-linear-gradient(to bottom, #c9b458, #b59f3b);
   background: linear-gradient(to bottom, #c9b458, #b59f3b);
   color: white;
   border-color: #b59f3b;
 }
 .grid-tile.gray {
-  background: #787c7e;
-  color: white;
-  border-color: #3a3a3c;
-  background: #787c7e;
-  background: -webkit-linear-gradient(top, #787c7e, #3a3a3c);
-  background: -moz-linear-gradient(top, #787c7e, #3a3a3c);
-  background: -o-linear-gradient(top, #787c7e, #3a3a3c);
+  background: -webkit-linear-gradient(to bottom, #787c7e, #3a3a3c);
+  background: -moz-linear-gradient(to bottom, #787c7e, #3a3a3c);
+  background: -o-linear-gradient(to bottom, #787c7e, #3a3a3c);
   background: linear-gradient(to bottom, #787c7e, #3a3a3c);
   color: white;
   border-color: #3a3a3c;
@@ -137,7 +133,7 @@ h1 {
 .guess-player {
   margin-left: 12px;
   font-size: 1.1rem;
-  color: #444;
+  color: #bbb;
   font-weight: 500;
   align-self: center;
 }
@@ -154,5 +150,41 @@ input[placeholder="Your Guess"] {
 }
 
 .new-game-container {
-  margin-bottom: 1.75em;
+  margin-bottom: 1.5em;
+}
+
+/* Make the TextField background dark in all browsers */
+.MuiOutlinedInput-root {
+  background: #23272a !important;
+}
+
+.MuiInputBase-input, .MuiInputLabel-root {
+  color: #fff !important;
+}
+
+.MuiOutlinedInput-notchedOutline {
+  border-color: #444 !important;
+}
+
+input {
+  background: transparent !important;
+  color: #fff !important;
+}
+
+/* Ensure Join button text is always white, even in Safari */
+.MuiButton-containedSecondary, 
+button.MuiButton-containedSecondary, 
+.MuiButton-contained.MuiButton-containedSecondary {
+  color: #fff !important;
+}
+
+@media (max-width: 600px) {
+  .App {
+    padding: 0 0.5em;
+  }
+  .grid-tile {
+    width: 36px;
+    height: 36px;
+    font-size: 1.3rem;
+  }
 }

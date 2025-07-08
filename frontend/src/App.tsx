@@ -255,7 +255,7 @@ function App() {
                 size="large"
                 sx={{ height: '56px' }}
               >
-                Send Guess
+                Guess
               </Button>
             </div>
             {gameResult && (
