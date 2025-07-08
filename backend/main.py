@@ -1,15 +1,20 @@
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect, Response
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect, Response, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from backend.words import load_words
+from fastapi.staticfiles import StaticFiles
 from enum import Enum
 from time import time
 import uuid
 import json
 import random
 import os
-from fastapi.staticfiles import StaticFiles
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 WORD_LIST = load_words()
 
@@ -36,7 +41,14 @@ class Action(Enum):
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
-red_cache = Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+REDIS_URL = os.environ.get("REDIS_URL")
+
+if REDIS_URL:
+    red_cache = Redis.from_url(REDIS_URL, decode_responses=True)
+    logger.info(f"Redis connection initialized with REDIS_URL")
+else:
+    red_cache = Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+    logger.info(f"Redis connection initialized with host: {REDIS_HOST}, port: {REDIS_PORT}")
 
 def get_random_word() -> str:
     return random.choice(WORD_LIST)
@@ -68,7 +80,8 @@ async def get_or_create_game_state(action: Action, session_id = None) -> dict:
                 return game_state_obj
         else:
             return new_game_state()
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error in get_or_create_game_state: {e}")
         pass
     finally:
         return new_game_state()
