@@ -306,7 +306,7 @@ function App() {
       
       {/* Main App Content */}
       <div className="App">
-        <h1>Wordle w/ Friends &#x1F50D;&#x1F3C6;</h1>
+        <h1>Wordle w/ Friends &#x1F3C6;</h1>
         <div>
           <div className="new-game-container">
             <Button variant="contained" color="primary" onClick={createSession} size="large">
