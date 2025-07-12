@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect, Response, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from backend.words import load_words
-from fastapi.staticfiles import StaticFiles
 from enum import Enum
 from time import time
 import uuid
@@ -111,6 +110,17 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for deployment monitoring"""
+    try:
+        # Test Redis connection
+        await red_cache.ping()
+        return {"status": "healthy", "redis": "connected", "word_count": len(WORD_LIST)}
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {"status": "unhealthy", "error": str(e)}
+
 @app.post("/create_session")
 async def create_session():
     session_id = str(uuid.uuid4())
@@ -194,8 +204,3 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str)
                 await manager.broadcast(session_id, broadcast_data)
     except WebSocketDisconnect:
         manager.disconnect(session_id, player)
-
-
-# Only mount static files if running in Docker
-if os.environ.get("IN_DOCKER") == "1":
-    app.mount("/", StaticFiles(directory="frontend_build", html=True), name="static")
