@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: wordle-backend
+    name: wordle-with-friends-backend
     env: python
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: PYTHONPATH=/opt/render/project/src uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: REDIS_URL
-        value: redis://your-redis-url  # You'll need to set up Redis separately
+        value: redis://red-d1m65lmmcj7s739t32pg:6379
       - key: IN_DOCKER
         value: true 
