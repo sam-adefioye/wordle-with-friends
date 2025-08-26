@@ -197,10 +197,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str)
                 broadcast_data = {**game_state}
                 total_guesses = len(game_state[GUESSES_KEY])
 
-                if player and guess and total_guesses < 6:
+                if player and guess and total_guesses <= 6:
                     if guess == game_state[ANSWER_KEY]:
                         game_result = {"result": "win"}
-                    elif total_guesses == 5:
+                    elif total_guesses == 6:
                         game_result = {"result": "loss"}
                 if game_result:
                     broadcast_data = {**broadcast_data, **game_result}

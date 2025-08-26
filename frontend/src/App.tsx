@@ -61,7 +61,7 @@ const AnimatedWordBackground: React.FC<AnimatedWordBackgroundProps> = ({
     const delay = Math.random() * 2;
     word.style.animationDelay = delay + 's';
     
-    // Use a more contrasting color for the animated words
+    // Use a more contrasting colour for the animated words
     word.style.color = `rgba(0, 0, 0, 0.08)`;
     word.style.textShadow = 'none';
 
@@ -153,29 +153,37 @@ const AnimatedWordBackground: React.FC<AnimatedWordBackgroundProps> = ({
   );
 };
 
-// Main App Component
 const getTileColors = (guess: string, answer: string) => {
   const colors = Array(WORD_LENGTH).fill('gray');
   const answerArr = answer.split('');
   const guessArr = guess.split('');
   const used = Array(WORD_LENGTH).fill(false);
 
+  const letterIndices: Record<string, number[]> = {};
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    const letter = answerArr[i];
+    const letterArr = letterIndices[letter] || [];
+    letterArr.push(i);
+    letterIndices[letter] = letterArr;
+  }
+
   for (let i = 0; i < WORD_LENGTH; i++) {
     if (guessArr[i] === answerArr[i]) {
       colors[i] = 'green';
       used[i] = true;
+      letterIndices[guessArr[i]] = letterIndices[guessArr[i]].filter((index) => index !== i);
     }
   }
+
   for (let i = 0; i < WORD_LENGTH; i++) {
-    if (colors[i] === 'green') continue;
-    for (let j = 0; j < WORD_LENGTH; j++) {
-      if (!used[j] && guessArr[i] === answerArr[j]) {
-        colors[i] = 'yellow';
-        used[j] = true;
-        break;
-      }
+    let letterIndex = letterIndices[guessArr[i]];
+    if (letterIndex && letterIndex.length > 0 && !letterIndex.includes(i) && !used[i]) {
+      colors[i] = 'yellow';
+      used[i] = true;
+      letterIndices[guessArr[i]] = letterIndices[guessArr[i]].filter((index) => index !== i);
     }
   }
+
   return colors;
 }
 
@@ -202,7 +210,7 @@ function App() {
     setGridRows(Array.from({ length: MAX_GUESSES }, (_, i) =>
       allGuesses[i] ? allGuesses[i].guess.padEnd(WORD_LENGTH) : ''.padEnd(WORD_LENGTH)
     ));
-    setGuessesLeft(totalGuesses < MAX_GUESSES);
+    setGuessesLeft(totalGuesses <= MAX_GUESSES);
   }, [guesses, connected, totalGuesses, players]);
   
   const clear = () => {
