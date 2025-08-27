@@ -180,7 +180,7 @@ const getTileColors = (guess: string, answer: string) => {
     if (letterIndex && letterIndex.length > 0 && !letterIndex.includes(i) && !used[i]) {
       colors[i] = 'yellow';
       used[i] = true;
-      letterIndices[guessArr[i]] = letterIndices[guessArr[i]].filter((index) => index !== i);
+      letterIndices[guessArr[i]].shift();
     }
   }
 
@@ -420,7 +420,7 @@ function App() {
                       maxLength: WORD_LENGTH, style: { textTransform: 'uppercase', fontWeight: 'bold', fontSize: '1.2em', letterSpacing: '0.2em' }
                     }
                   }}
-                  disabled={!guessesLeft || gameResult.length > 0}
+                  disabled={connected && !guessesLeft || gameResult.length > 0}
                   autoComplete="off"
                   sx={{ width: 180 }}
                 />

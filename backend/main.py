@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect, Response, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, requests
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from backend.words import load_words
@@ -105,8 +105,11 @@ class ConnectionManager:
             self.active_connections[session_id] = {}
         self.active_connections[session_id][player] = websocket
 
-    def disconnect(self, session_id: str, player: str):
+    async def disconnect(self, session_id: str, player: str):
         if session_id in self.active_connections and player in self.active_connections[session_id]:
+            ws = self.active_connections[session_id][player]
+            await ws.send_json({"connected": False})
+            
             del self.active_connections[session_id][player]
             if not self.active_connections[session_id]:
                 del self.active_connections[session_id]
@@ -175,10 +178,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str)
                     game_state_json = results[0]
                     if game_state_json:
                         game_state = json.loads(game_state_json)
-                        game_state[PLAYERS_KEY].append(player)
-                        await red_cache.set(session_id_str, json.dumps(game_state))
-                        await red_cache.expire(session_id_str, SESSION_TTL_SECONDS)
-                    await manager.broadcast(session_id, game_state);
+                        if player not in game_state[PLAYERS_KEY]:
+                            game_state[PLAYERS_KEY].append(player)
+                            await red_cache.set(session_id_str, json.dumps(game_state))
+                    await manager.broadcast(session_id, game_state)
 
                 pipe.get(session_id_str)
                 results = await pipe.execute()
@@ -211,4 +214,4 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str)
             if type != Action.CREATE.value:
                 await manager.broadcast(session_id, broadcast_data)
     except WebSocketDisconnect:
-        manager.disconnect(session_id, player)
+        await manager.disconnect(session_id, player)

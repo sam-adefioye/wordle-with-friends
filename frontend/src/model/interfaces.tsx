@@ -11,4 +11,5 @@ export interface GameState {
     sessionId: string;
     type?: string;
     result?: string;
+    connected?: boolean;
 }
