@@ -322,7 +322,13 @@ function App() {
         <h1>Wordle w/ Friends &#x1F3C6;</h1>
         <div>
           <div className="new-game-container">
-            <Button variant="contained" color="primary" onClick={createSession} size="large">
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={createSession} 
+              size="large"
+              disabled={!connected && !!sessionId}
+            >
               {gameResult || sessionId ? <ReplayIcon fontSize="medium" /> : 'New Game'}
             </Button>
           </div>
