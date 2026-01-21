@@ -261,6 +261,11 @@ function App() {
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data) as GameState;
       
+      if (data.type === "ping") {
+        ws.current?.send(JSON.stringify({ type: "pong" }));
+        return;
+      }
+      
       if (data.type === "reset") {
         setGuesses([]);
         setTotalGuesses(0);
@@ -420,7 +425,7 @@ function App() {
                       maxLength: WORD_LENGTH, style: { textTransform: 'uppercase', fontWeight: 'bold', fontSize: '1.2em', letterSpacing: '0.2em' }
                     }
                   }}
-                  disabled={connected && !guessesLeft || gameResult.length > 0}
+                  disabled={(connected && !guessesLeft) || gameResult.length > 0}
                   autoComplete="off"
                   sx={{ width: 180 }}
                 />

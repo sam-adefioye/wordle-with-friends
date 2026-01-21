@@ -1,3 +1,4 @@
+from typing import Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Response, requests
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,11 +6,13 @@ from redis.asyncio import Redis
 from backend.words import load_words
 from enum import Enum
 from time import time
+from contextlib import asynccontextmanager
 import uuid
 import json
 import random
 import os
 import logging
+import asyncio
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -17,21 +20,17 @@ logger = logging.getLogger(__name__)
 
 WORD_LIST = load_words()
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# App will be created after ConnectionManager is defined
 
 SESSION_ID_PREFIX = 'wordle-answer-'
 PLAYERS_KEY = 'players'
 GUESSES_KEY = 'guesses'
 ANSWER_KEY = 'answer'
 SESSION_TTL_SECONDS = 60 * 60 * 24
+
+# Heartbeat configuration
+HEARTBEAT_INTERVAL = 30  # Send ping every 30 seconds
+HEARTBEAT_TIMEOUT = 60   # Close connection if no pong received within 60 seconds
 
 class Action(Enum):
     CREATE = "create"
@@ -98,28 +97,121 @@ class ConnectionManager:
     def __init__(self):
         # Now: {session_id: {player_name: websocket}}
         self.active_connections: dict = {}
+        # Track last heartbeat time: {session_id: {player_name: last_heartbeat_time}}
+        self.last_heartbeat: dict = {}
+        # Track pending pings: {session_id: {player_name: ping_timestamp}}
+        self.pending_pings: dict = {}
 
     async def connect(self, session_id: str, player: str, websocket: WebSocket):
         await websocket.accept()
         if session_id not in self.active_connections:
             self.active_connections[session_id] = {}
+            self.last_heartbeat[session_id] = {}
+            self.pending_pings[session_id] = {}
         self.active_connections[session_id][player] = websocket
+        self.last_heartbeat[session_id][player] = time()
+        self.pending_pings[session_id][player] = None
 
     async def disconnect(self, session_id: str, player: str):
         if session_id in self.active_connections and player in self.active_connections[session_id]:
             ws = self.active_connections[session_id][player]
-            await ws.send_json({"connected": False})
+            try:
+                await ws.send_json({"connected": False})
+            except Exception:
+                pass  # Connection might already be closed
             
             del self.active_connections[session_id][player]
+            if player in self.last_heartbeat.get(session_id, {}):
+                del self.last_heartbeat[session_id][player]
+            if player in self.pending_pings.get(session_id, {}):
+                del self.pending_pings[session_id][player]
+            
+            try:
+                session_id_str = f"{SESSION_ID_PREFIX}{session_id}"
+                game_state_json = await red_cache.get(session_id_str)
+                if game_state_json:
+                    game_state = json.loads(game_state_json)
+                    if player in game_state.get(PLAYERS_KEY, []):
+                        game_state[PLAYERS_KEY].remove(player)
+                        await red_cache.set(session_id_str, json.dumps(game_state))
+                        await self.broadcast(session_id, game_state)
+            except Exception as e:
+                logger.error(f"Error updating game state on disconnect: {e}")
+            
             if not self.active_connections[session_id]:
                 del self.active_connections[session_id]
+                if session_id in self.last_heartbeat:
+                    del self.last_heartbeat[session_id]
+                if session_id in self.pending_pings:
+                    del self.pending_pings[session_id]
 
     async def broadcast(self, session_id: str, message: dict):
         if session_id in self.active_connections:
             for ws in self.active_connections[session_id].values():
-                await ws.send_json(message)
+                try:
+                    await ws.send_json(message)
+                except Exception as e:
+                    logger.warning(f"Error broadcasting to websocket: {e}")
+
+    async def send_ping(self, session_id: str, player: str):
+        """Send a ping message to a specific connection"""
+        if session_id in self.active_connections and player in self.active_connections[session_id]:
+            ws = self.active_connections[session_id][player]
+            try:
+                ping_time = time()
+                await ws.send_json({"type": "ping", "timestamp": ping_time})
+                self.pending_pings[session_id][player] = ping_time
+            except Exception as e:
+                logger.warning(f"Error sending ping to {session_id}/{player}: {e}")
+                await self.disconnect(session_id, player)
+
+    async def handle_pong(self, session_id: str, player: str):
+        """Handle a pong response from a client"""
+        if session_id in self.last_heartbeat and player in self.last_heartbeat[session_id]:
+            self.last_heartbeat[session_id][player] = time()
+            self.pending_pings[session_id][player] = None
+
+    async def check_heartbeats(self):
+        """Periodically check all connections and send pings"""
+        while True:
+            try:
+                await asyncio.sleep(HEARTBEAT_INTERVAL)
+                current_time = time()
+                
+                # Check for stale connections and send pings in a single pass
+                for session_id in list(self.active_connections.keys()):
+                    for player in list(self.active_connections[session_id].keys()):
+                        # Check if connection is stale (no pong received within timeout)
+                        ping_time = self.pending_pings.get(session_id, {}).get(player)
+                        if ping_time and (current_time - ping_time) > HEARTBEAT_TIMEOUT:
+                            logger.info(f"Closing stale connection: {session_id}/{player}")
+                            await self.disconnect(session_id, player)
+                        else:
+                            # Send ping to this connection
+                            await self.send_ping(session_id, player)
+            except Exception as e:
+                logger.error(f"Error in heartbeat check: {e}")
 
 manager = ConnectionManager()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events"""
+    # Startup
+    asyncio.create_task(manager.check_heartbeats())
+    logger.info("Heartbeat task started")
+    yield
+    # Shutdown (if needed in the future)
+
+app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 async def health_check():
@@ -158,12 +250,19 @@ async def reset_session(session_id: str):
 
 @app.websocket("/ws/{session_id}/{player}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str):
-    await manager.connect(session_id, player, websocket)
+    original_player = player  # Store original player name for heartbeat tracking
+    await manager.connect(session_id, original_player, websocket)
 
     try:
         while True:
             session_id_str = f"{SESSION_ID_PREFIX}{session_id}"
             data = await websocket.receive_json()
+            
+            # Handle heartbeat pong response
+            if data.get("type") == "pong":
+                await manager.handle_pong(session_id, original_player)
+                continue
+            
             player = data.get("player")
             guess = data.get("guess")
             type = data.get("type")
@@ -214,4 +313,4 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, player: str)
             if type != Action.CREATE.value:
                 await manager.broadcast(session_id, broadcast_data)
     except WebSocketDisconnect:
-        await manager.disconnect(session_id, player)
+        await manager.disconnect(session_id, original_player)
