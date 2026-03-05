@@ -177,7 +177,7 @@ const getTileColors = (guess: string, answer: string) => {
 
   for (let i = 0; i < WORD_LENGTH; i++) {
     let letterIndex = letterIndices[guessArr[i]];
-    if (letterIndex && letterIndex.length > 0 && !letterIndex.includes(i) && !used[i]) {
+    if (letterIndex && letterIndex.length > 0 && !used[i]) {
       colors[i] = 'yellow';
       used[i] = true;
       letterIndices[guessArr[i]].shift();
