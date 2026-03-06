@@ -485,7 +485,7 @@ function App() {
               <h4>All Players' Guesses:</h4>
               <div className="players-guesses">
                 {guesses.sort((a, b) => a.timestamp - b.timestamp).map((row, i) =>
-                  <div key={row.name + '-' + i}><b>{row.guess}</b> <span style={{color:'#888'}}>({row.name})</span></div>
+                  <div key={row.name + '-' + i}><b>{row.guess.toUpperCase()}</b> <span style={{color:'#888'}}>({row.name})</span></div>
                 )}
               </div>
             </>
