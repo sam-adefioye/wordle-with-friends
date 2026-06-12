@@ -13,7 +13,6 @@ import random
 import os
 import logging
 import asyncio
-import requests
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -49,29 +48,7 @@ else:
     red_cache = Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
     logger.info(f"Redis connection initialized with host: {REDIS_HOST}, port: {REDIS_PORT}")
 
-def is_valid_word(word: str) -> bool:
-    try:
-        response = requests.get(f"https://www.dictionary.com/browse/{word}", timeout=5)
-        return response.status_code == 200
-    except Exception as e:
-        logger.error(f"Error validating word '{word}' on dictionary.com: {e}")
-        return False
-
 def get_random_word() -> str:
-    max_retries = 10
-    for _ in range(max_retries):
-        try:
-            response = requests.get("https://random-word-api.vercel.app/api?words=1&length=5", timeout=5)
-            if response.status_code == 200:
-                words = response.json()
-                if words:
-                    word = words[0]
-                    if is_valid_word(word):
-                        return word
-                    else:
-                        logger.info(f"Word '{word}' not found on dictionary.com, retrying...")
-        except Exception as e:
-            logger.error(f"Error fetching word from API: {e}")
     return random.choice(WORD_LIST)
 
 def new_game_state() -> dict:
